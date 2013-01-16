@@ -33,6 +33,8 @@ class ConfigurationManager
 	public static final String LISTEN_IP = "listenIP";
 	public static final String LISTEN_PORT = "listenPort";
 	public static final String START_POLLERS = "startPollers";
+	public static final String API_USER = "apiUser";
+	public static final String API_PASSWORD = "apiPassword";
 
 	private static ConfigurationParameter[] parameters =
 	{
@@ -68,6 +70,12 @@ class ConfigurationManager
 				null),
 		new ConfigurationParameter(START_POLLERS, ConfigurationParameter.TYPE_INTEGER, 5,
 				new IntegerValidator(1, 1000),
+				null),
+		new ConfigurationParameter(API_USER, ConfigurationParameter.TYPE_STRING, "admin",
+				null,
+				null),
+		new ConfigurationParameter(API_PASSWORD, ConfigurationParameter.TYPE_STRING, "zabbix",
+				null,
 				null)
 	};
 
@@ -101,6 +109,10 @@ class ConfigurationManager
 	public static int getIntegerParameterValue(String name)
 	{
 		return (Integer)getParameter(name).getValue();
+	}
+	
+	public static String getStringParameterValue(String name) {
+		return getParameter(name).getValue().toString();
 	}
 
 	public static String getPackage()

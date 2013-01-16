@@ -20,10 +20,8 @@
 package com.zabbix.gateway;
 
 import java.util.HashMap;
-import java.util.Vector;
 
 import javax.management.MBeanAttributeInfo;
-import javax.management.MBeanInfo;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 import javax.management.openmbean.CompositeData;

@@ -33,3 +33,18 @@ PID_FILE="/tmp/zabbix_java.pid"
 # Range: 1-1000
 # Default:
 # START_POLLERS=5
+
+### Option: zabbix.apiUser
+#	The API username to use
+#
+# Mandatory: no
+# Default:
+# API_USER=admin
+
+### Option: zabbix.apiPassword
+#	The API password to use
+#
+# Mandatory: no
+# Default:
+# API_PASSWORD=zabbix
+

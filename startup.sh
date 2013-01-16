@@ -23,6 +23,12 @@ for jar in {lib,bin}/*.jar; do
 done
 
 ZABBIX_OPTIONS=""
+if [ -n "$API_USER" ]; then
+	ZABBIX_OPTIONS="$ZABBIX_OPTIONS -Dzabbix.apiUser=$API_USER"
+fi
+if [ -n "$API_PASSWORD" ]; then
+	ZABBIX_OPTIONS="$ZABBIX_OPTIONS -Dzabbix.apiPassword=$API_PASSWORD"
+fi
 if [ -n "$PID_FILE" ]; then
 	ZABBIX_OPTIONS="$ZABBIX_OPTIONS -Dzabbix.pidFile=$PID_FILE"
 fi

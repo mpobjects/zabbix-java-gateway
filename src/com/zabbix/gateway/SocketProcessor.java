@@ -21,11 +21,17 @@ package com.zabbix.gateway;
 
 import java.net.Socket;
 import java.util.Formatter;
+import java.util.concurrent.TimeUnit;
 
 import org.json.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.MetricName;
+import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.TimerContext;
 
 class SocketProcessor implements Runnable
 {
@@ -54,13 +60,27 @@ class SocketProcessor implements Runnable
 
 			if (request.getString(ItemChecker.JSON_TAG_REQUEST).equals(ItemChecker.JSON_REQUEST_INTERNAL))
 				checker = new InternalItemChecker(request);
-			else if (request.getString(ItemChecker.JSON_TAG_REQUEST).equals(ItemChecker.JSON_REQUEST_JMX))
-				checker = new JMXItemChecker(request);
+			else if (request.getString(ItemChecker.JSON_TAG_REQUEST).equals(ItemChecker.JSON_REQUEST_JMX)) {
+				JmxConfiguration jmxConfig = JmxConfiguration.getConfig(request.getString(ItemChecker.JSON_TAG_CONN),
+					                                                    request.getInt(ItemChecker.JSON_TAG_PORT));
+				if (jmxConfig.getProtocol().startsWith("http")) {
+					checker = new JolokiaChecker(request);
+				}
+				else {
+					checker = new JMXItemChecker(request);
+				}
+			}	
 			else
 				throw new ZabbixException("bad request tag value: '%s'", request.getString(ItemChecker.JSON_TAG_REQUEST));
 
 			logger.debug("dispatched request to class {}", checker.getClass().getName());
+			
+			
+			MetricName mName = new MetricName(checker.getClass(), "get-values");
+			Timer timer = Metrics.newTimer(mName, TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
+			TimerContext context = timer.time();
 			JSONArray values = checker.getValues();
+			context.stop();
 
 			JSONObject response = new JSONObject();
 			response.put(ItemChecker.JSON_TAG_RESPONSE, ItemChecker.JSON_RESPONSE_SUCCESS);
