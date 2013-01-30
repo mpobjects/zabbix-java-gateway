@@ -20,6 +20,9 @@
 package com.zabbix.gateway;
 
 import java.util.HashMap;
+import java.util.Hashtable;
+import java.util.Map;
+import java.util.Set;
 
 import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanServerConnection;
@@ -39,15 +42,19 @@ class JMXItemChecker extends ItemChecker
 {
 	private static final Logger logger = LoggerFactory.getLogger(JMXItemChecker.class);
 
-	private JMXServiceURL url;
+	private final JMXServiceURL url;
 	private JMXConnector jmxc;
 	private MBeanServerConnection mbsc;
 
-	private String username;
-	private String password;
+	private final String username;
+	private final String password;
 
 	public JMXItemChecker(JSONObject request) throws ZabbixException
 	{
+		this(request, null);
+	}
+	
+	protected JMXItemChecker(JSONObject request, JmxConfiguration config) throws ZabbixException {
 		super(request);
 
 		try
@@ -55,7 +62,13 @@ class JMXItemChecker extends ItemChecker
 			String conn = request.getString(JSON_TAG_CONN);
 			int port = request.getInt(JSON_TAG_PORT);
 
-			url = new JMXServiceURL("service:jmx:rmi:///jndi/rmi://" + conn + ":" + port + "/jmxrmi");
+			if (config == null) {
+				url = new JMXServiceURL(JmxConfigurationManager.getConfig(conn, port).getUrl());
+			}
+			else {
+				url = new JMXServiceURL(config.getUrl());
+			}
+			
 			jmxc = null;
 			mbsc = null;
 
@@ -153,42 +166,49 @@ class JMXItemChecker extends ItemChecker
 		}
 		else if (item.getKeyId().equals("jmx.discovery"))
 		{
-			if (0 != item.getArgumentCount())
-				throw new ZabbixException("required key format: jmx.discovery");
+			if (item.getArgumentCount() > 1)
+				throw new ZabbixException("required key format: jmx.discovery or jmx.discovery[<ObjectNameWildcard>]");
 
 			JSONArray counters = new JSONArray();
 
-			for (ObjectName name : mbsc.queryNames(null, null))
-			{
-				logger.trace("discovered object '{}'", name);
-
-				for (MBeanAttributeInfo attrInfo : mbsc.getMBeanInfo(name).getAttributes())
+			if (item.getArgumentCount() == 0) {
+				for (ObjectName name : mbsc.queryNames(null, null))
 				{
-					logger.trace("discovered attribute '{}'", attrInfo.getName());
-
-					if (!attrInfo.isReadable())
+					logger.trace("discovered object '{}'", name);
+		
+					for (MBeanAttributeInfo attrInfo : mbsc.getMBeanInfo(name).getAttributes())
 					{
-						logger.trace("attribute not readable, skipping");
-						continue;
-					}
-
-					try
-					{
-						logger.trace("looking for attributes of primitive types");
-						String descr = (attrInfo.getName().equals(attrInfo.getDescription()) ? null : attrInfo.getDescription());
-						findPrimitiveAttributes(counters, name, descr, attrInfo.getName(), mbsc.getAttribute(name, attrInfo.getName()));
-					}
-					catch (Exception e)
-					{
-						Object[] logInfo = {name, attrInfo.getName(), e};
-						logger.trace("processing '{},{}' failed", logInfo);
+						logger.trace("discovered attribute '{}'", attrInfo.getName());
+		
+						if (!attrInfo.isReadable())
+						{
+							logger.trace("attribute not readable, skipping");
+							continue;
+						}
+		
+						try
+						{
+							logger.trace("looking for attributes of primitive types");
+							String descr = (attrInfo.getName().equals(attrInfo.getDescription()) ? null : attrInfo.getDescription());
+							findPrimitiveAttributes(counters, name, descr, attrInfo.getName(), mbsc.getAttribute(name, attrInfo.getName()));
+						}
+						catch (Exception e)
+						{
+							Object[] logInfo = {name, attrInfo.getName(), e};
+							logger.trace("processing '{},{}' failed", logInfo);
+						}
 					}
 				}
+			}
+			else {
+				String objNameWildcard = item.getArgument(1);
+				Set<ObjectName> objectNames = mbsc.queryNames(new ObjectName(objNameWildcard), null);
+				buildDiscoveryOutput(counters, objectNames);
 			}
 
 			JSONObject mapping = new JSONObject();
 			mapping.put(ItemChecker.JSON_TAG_DATA, counters);
-			return mapping.toString(2);
+			return mapping.toString();
 		}
 		else
 			throw new ZabbixException("key ID '%s' is not supported", item.getKeyId());
@@ -277,5 +297,22 @@ class JMXItemChecker extends ItemChecker
 		Class<?>[] clazzez = {Boolean.class, Byte.class, Short.class, Integer.class, Long.class, Float.class, Double.class, String.class};
 
 		return HelperFunctionChest.arrayContains(clazzez, clazz);
+	}
+	
+	private void buildDiscoveryOutput(JSONArray counters, Set<ObjectName> objectNames) throws JSONException {
+		for (ObjectName objName : objectNames) {
+        	// Add the full JMX Object Name as a macro
+        	// in the return string
+            JSONObject taskObj = new JSONObject();
+            taskObj.put("{#JMXOBJ}", objName.getCanonicalName());
+            
+        	// Add each property of the Object Name as returned macros
+			Hashtable<String, String> props = objName.getKeyPropertyList();
+			for (Map.Entry<String, String> propEntry : props.entrySet()) {
+				taskObj.put(String.format("{#%s}", propEntry.getKey().toUpperCase()),
+						propEntry.getValue());
+			}
+            counters.put(taskObj);
+        }
 	}
 }
