@@ -10,4 +10,8 @@ public interface TestMXBean {
 	public Double getSciNotationDouble();
 	
 	public TestCompositeObject getCompositeObject();
+	
+	public long[] getLongArray();
+	
+	public int[] getEmptyArray();
 }

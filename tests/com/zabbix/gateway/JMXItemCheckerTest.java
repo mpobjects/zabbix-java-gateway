@@ -7,7 +7,10 @@ import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.net.ServerSocket;
 import java.rmi.registry.LocateRegistry;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.logging.LogManager;
 
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.InstanceNotFoundException;
@@ -70,6 +73,51 @@ public class JMXItemCheckerTest {
 		
 		testServer.stop();
 	}
+	
+	@Test
+    public void testArrayAttributeRead() throws JSONException, ZabbixException {
+        List<String> actualLoggers = LogManager.getLoggingMXBean()
+            .getLoggerNames();
+        JSONObject request = getNewRequestObject();
+        JSONArray keys = new JSONArray();
+        keys.put("jmx[java.util.logging:type=Logging,LoggerNames]");
+        request.put("keys", keys);
+
+        ItemChecker itemChecker = new JMXItemChecker(request, getMockConfig());
+        JSONArray values = itemChecker.getValues();
+        String managerNames = values.getJSONObject(0).getString("value");
+        List<String> foundLoggers = new ArrayList<String>();
+        Collections.addAll(foundLoggers, managerNames.split("\\n"));
+        assertTrue(actualLoggers.size() > 0);
+    }
+	
+	@Test
+    public void testPrimitiveArrayRead() throws JSONException, ZabbixException {
+        JSONObject request = getNewRequestObject();
+        JSONArray keys = new JSONArray();
+        keys.put("jmx[" + TEST_MBEAN_NAME + ",LongArray]");
+        request.put("keys", keys);
+
+        ItemChecker itemChecker = new JMXItemChecker(request, getMockConfig());
+        JSONArray values = itemChecker.getValues();
+        String foundValues = values.getJSONObject(0).getString("value");
+        TestMXBean testBean = new TestMXBeanImpl();
+        for (long value : testBean.getLongArray()) {
+        	assertTrue(foundValues.contains(String.valueOf(value)));
+        }
+    }
+	
+	@Test
+    public void testEmptyArrayRead() throws JSONException, ZabbixException {
+        JSONObject request = getNewRequestObject();
+        JSONArray keys = new JSONArray();
+        keys.put("jmx[" + TEST_MBEAN_NAME + ",EmptyArray]");
+        request.put("keys", keys);
+
+        ItemChecker itemChecker = new JMXItemChecker(request, getMockConfig());
+        JSONArray values = itemChecker.getValues();
+        assertEquals("", values.getJSONObject(0).getString("value"));
+    }
 
     @Test
     public void testBadKeys() throws JSONException, ZabbixException {

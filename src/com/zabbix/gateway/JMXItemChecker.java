@@ -19,6 +19,7 @@
 
 package com.zabbix.gateway;
 
+import java.lang.reflect.Array;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
@@ -223,8 +224,12 @@ class JMXItemChecker extends ItemChecker
 
 		if (fieldNames.equals(""))
 		{
-			if (isPrimitiveAttributeType(dataObject.getClass()))
+			if (isPrimitiveAttributeType(dataObject.getClass())) {
 				return dataObject.toString();
+			}
+			else if (dataObject.getClass().isArray()) {
+				return handleArray(dataObject);
+			}
 			else
 				throw new ZabbixException("data object type is not primitive: %s" + dataObject.getClass());
 		}
@@ -315,4 +320,32 @@ class JMXItemChecker extends ItemChecker
             counters.put(taskObj);
         }
 	}
+	
+	private String handleArray(Object dataArray) {
+		StringBuilder builder = new StringBuilder();
+		
+		Object[] castArray;
+		if (dataArray.getClass().getComponentType().isPrimitive()) {
+			int count = Array.getLength(dataArray);
+			castArray = new Object[count];
+
+		    for(int i = 0; i < count; i++){
+		        castArray[i] = Array.get(dataArray, i);          
+		    }   
+		}
+		else {
+			castArray = (Object[]) dataArray;
+		}
+		
+		if (castArray.length == 0) return "";
+
+        for (Object entry : castArray) {
+        	if (entry != null) {
+                builder.append(String.valueOf(entry)).append("\n");
+        	}
+        }
+        
+        // Remove the last newline
+        return builder.substring(0, builder.length() - 1);
+    }
 }
