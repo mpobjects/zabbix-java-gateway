@@ -225,7 +225,13 @@ class JMXItemChecker extends ItemChecker
 		if (fieldNames.equals(""))
 		{
 			if (isPrimitiveAttributeType(dataObject.getClass())) {
-				return dataObject.toString();
+				String value = dataObject.toString();
+				// Zabbix doesn't like scientific notation so see if
+				// we need to translate it back to numeric.
+				if (HelperFunctionChest.isScientificNotation(value)) {
+					value = HelperFunctionChest.scientificToPlain(value);
+				}
+				return value;
 			}
 			else if (dataObject.getClass().isArray()) {
 				return handleArray(dataObject);
