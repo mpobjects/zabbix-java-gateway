@@ -18,5 +18,7 @@
 	<classpathentry kind="lib" path="lib/json-simple-1.1.1.jar"/>
 	<classpathentry kind="lib" path="lib/metrics-core-3.0.0-SNAPSHOT.jar"/>
 	<classpathentry kind="lib" path="lib/json.jar"/>
-	<classpathentry kind="output" path="bin"/>
+	<classpathentry kind="lib" path="tests/jolokia-jvm-1.0.7-SNAPSHOT-agent.jar"/>
+	<classpathentry kind="lib" path="tests/mockito-all-1.9.5.jar"/>
+	<classpathentry kind="output" path="build/classes"/>
 </classpath>

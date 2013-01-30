@@ -21,12 +21,14 @@ package com.zabbix.gateway;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
 
 import org.jolokia.client.J4pClient;
 import org.jolokia.client.J4pClientBuilder;
@@ -34,10 +36,15 @@ import org.jolokia.client.exception.J4pBulkRemoteException;
 import org.jolokia.client.exception.J4pException;
 import org.jolokia.client.exception.J4pRemoteException;
 import org.jolokia.client.request.J4pExecRequest;
+import org.jolokia.client.request.J4pExecResponse;
 import org.jolokia.client.request.J4pReadRequest;
+import org.jolokia.client.request.J4pReadResponse;
 import org.jolokia.client.request.J4pRequest;
 import org.jolokia.client.request.J4pResponse;
+import org.jolokia.client.request.J4pSearchRequest;
+import org.jolokia.client.request.J4pSearchResponse;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +73,11 @@ public class JolokiaChecker extends ItemChecker {
     private static final Timer _requestTime = Metrics.newTimer(JolokiaChecker.class, "request-time", TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
 
     protected JolokiaChecker(JSONObject request) throws ZabbixException {
-        super(request);
+        this(request, null);
+    }
+    
+    protected JolokiaChecker(JSONObject request, JmxConfiguration config) throws ZabbixException {
+    	super(request);
 
         try {
             String conn = request.getString(JSON_TAG_CONN);
@@ -80,7 +91,14 @@ public class JolokiaChecker extends ItemChecker {
                 throw new IllegalArgumentException(
                     "invalid username and password nullness combination");
 
-            String jolokiaUrl = buildJolokiaUrl(conn, port);
+            String jolokiaUrl = null;
+            if (config == null) {
+            	jolokiaUrl = buildJolokiaUrl(JmxConfigurationManager.getConfig(conn, port));
+            }
+            else {
+            	jolokiaUrl = buildJolokiaUrl(config);
+            }
+
             logger.debug("Jolokia URL is: " + jolokiaUrl);
             J4pClientBuilder builder = J4pClient.url(jolokiaUrl)
                 .connectionTimeout(5000);
@@ -143,6 +161,11 @@ public class JolokiaChecker extends ItemChecker {
                     buildOperationRequest(item, allRequests,
                         standardRequestKeys);
                 }
+                else if (item.getKeyId().equals("jmx.discovery") && item.getArgumentCount() == 1) {
+                	J4pSearchRequest sRequest = new J4pSearchRequest(item.getArgument(1));
+                	allRequests.add(sRequest);
+                	standardRequestKeys.add(item);
+                }
                 else {
                     _errorKeys.put(
                         key,
@@ -184,13 +207,23 @@ public class JolokiaChecker extends ItemChecker {
             for (; responseIndex < standardRequestKeys.size(); responseIndex++) {
                 String key = standardRequestKeys.get(responseIndex).getKey();
                 Object response = responseList.get(responseIndex);
-                if (response instanceof J4pResponse) {
+                if (response instanceof J4pReadResponse || response instanceof J4pExecResponse) {
                     Object value = responseList.get(responseIndex).getValue();
                     _foundKeys.put(key, getValueToString(value));
                 }
-                else {
+                else if (response instanceof J4pRemoteException){
                     J4pRemoteException exception = (J4pRemoteException) response;
                     _errorKeys.put(key, exception.getMessage());
+                }
+                else {
+                	J4pSearchResponse sResponse = (J4pSearchResponse) response;
+					try {
+						String discoveryOutput = buildDiscoveryOutput(sResponse.getMBeanNames());
+						_foundKeys.put(key, discoveryOutput);
+					} catch (JSONException e) {
+						_errorKeys.put(key, e.getMessage());
+					}
+                	
                 }
             }
 
@@ -365,8 +398,8 @@ public class JolokiaChecker extends ItemChecker {
         return builder.substring(0, builder.length() - 1);
     }
 
-    private String buildJolokiaUrl(String ip, int port) {
-        String url = JmxConfiguration.getConfig(ip, port).getUrl();
+    private String buildJolokiaUrl(JmxConfiguration config) {
+        String url = config.getUrl();
 
         // Having issues with Jolokia if the endpoint doesn't have an ending
         // slash
@@ -375,5 +408,44 @@ public class JolokiaChecker extends ItemChecker {
         }
 
         return url;
+    }
+    
+    private String buildDiscoveryOutput(List<String> foundMbeans) throws JSONException {
+    	JSONObject jsonObj = new JSONObject();
+        JSONArray jsonArray = new JSONArray();
+
+        String output;
+        try {
+	        for (String objNameString : foundMbeans) {
+	        	// Add the full JMX Object Name as a macro
+	        	// in the return string
+	            JSONObject taskObj = new JSONObject();
+	            taskObj.put("{#JMXOBJ}", objNameString);
+	            
+	            try {
+	            	// Add each property of the Object Name as returned macros
+					ObjectName objName = new ObjectName(objNameString);
+					Hashtable<String, String> props = objName.getKeyPropertyList();
+					for (Map.Entry<String, String> propEntry : props.entrySet()) {
+						taskObj.put(String.format("{#%s}", propEntry.getKey().toUpperCase()),
+								propEntry.getValue());
+					}
+				} 
+	            catch (MalformedObjectNameException e) {
+					// This will never happen
+	            	logger.error(e.getMessage());
+				} 
+	            jsonArray.put(taskObj);
+	        }
+	        
+	        jsonObj.put("data", jsonArray);
+	        output = jsonObj.toString();
+        }
+        catch (JSONException e) {
+        	logger.warn("JSON error while building discovery output", e);
+        	throw e;
+        }
+
+        return output;
     }
 }

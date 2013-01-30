@@ -61,7 +61,7 @@ class SocketProcessor implements Runnable
 			if (request.getString(ItemChecker.JSON_TAG_REQUEST).equals(ItemChecker.JSON_REQUEST_INTERNAL))
 				checker = new InternalItemChecker(request);
 			else if (request.getString(ItemChecker.JSON_TAG_REQUEST).equals(ItemChecker.JSON_REQUEST_JMX)) {
-				JmxConfiguration jmxConfig = JmxConfiguration.getConfig(request.getString(ItemChecker.JSON_TAG_CONN),
+				JmxConfiguration jmxConfig = JmxConfigurationManager.getConfig(request.getString(ItemChecker.JSON_TAG_CONN),
 					                                                    request.getInt(ItemChecker.JSON_TAG_PORT));
 				if (jmxConfig.getProtocol().startsWith("http")) {
 					checker = new JolokiaChecker(request);
