@@ -21,6 +21,8 @@ package com.zabbix.gateway;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +37,8 @@ class ConfigurationManager
 	public static final String START_POLLERS = "startPollers";
 	public static final String API_USER = "apiUser";
 	public static final String API_PASSWORD = "apiPassword";
+	public static final String API_HOST = "apiHost";
+	public static final String API_PORT = "apiPort";
 
 	private static ConfigurationParameter[] parameters =
 	{
@@ -75,6 +79,12 @@ class ConfigurationManager
 				null,
 				null),
 		new ConfigurationParameter(API_PASSWORD, ConfigurationParameter.TYPE_STRING, "zabbix",
+				null,
+				null),
+		new ConfigurationParameter(API_HOST, ConfigurationParameter.TYPE_INETADDRESS, getAddressDefault(),
+				null,
+				null),
+		new ConfigurationParameter(API_PORT, ConfigurationParameter.TYPE_INTEGER, 80,
 				null,
 				null)
 	};
@@ -118,5 +128,14 @@ class ConfigurationManager
 	public static String getPackage()
 	{
 		return "com.zabbix.gateway";
+	}
+	
+	private static InetAddress getAddressDefault() {
+		try {
+			return InetAddress.getLocalHost();
+		} catch (UnknownHostException e) {
+			logger.error("An exception occurred when trying to resolve localhost");
+			throw new RuntimeException(e);
+		}
 	}
 }

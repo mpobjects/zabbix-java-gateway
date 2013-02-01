@@ -29,6 +29,12 @@ fi
 if [ -n "$API_PASSWORD" ]; then
 	ZABBIX_OPTIONS="$ZABBIX_OPTIONS -Dzabbix.apiPassword=$API_PASSWORD"
 fi
+if [ -n "$API_HOST" ]; then
+ZABBIX_OPTIONS="$ZABBIX_OPTIONS -Dzabbix.apiHost=$API_HOST"
+fi
+if [ -n "$API_PORT" ]; then
+ZABBIX_OPTIONS="$ZABBIX_OPTIONS -Dzabbix.apiPort=$API_PORT"
+fi
 if [ -n "$PID_FILE" ]; then
 	ZABBIX_OPTIONS="$ZABBIX_OPTIONS -Dzabbix.pidFile=$PID_FILE"
 fi

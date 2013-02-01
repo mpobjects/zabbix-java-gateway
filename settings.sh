@@ -48,3 +48,19 @@ PID_FILE="/tmp/zabbix_java.pid"
 # Default:
 # API_PASSWORD=zabbix
 
+### Option: zabbix.apiHost
+#   The host name or IP address
+#   of the Zabbix front end which
+#   the API connection will use.
+#
+# Mandatory: no
+# Default:
+# API_HOST=localhost
+
+### Option: zabbix.apiPort
+#   The Zabbix frontend port for API usage.
+#
+# Mandatory: no
+# Default:
+# API_PORT=80
+
