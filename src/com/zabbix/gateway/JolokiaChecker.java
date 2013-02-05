@@ -57,20 +57,22 @@ import com.yammer.metrics.core.TimerContext;
 public class JolokiaChecker extends ItemChecker {
 
     private static final String JMX_OPERATION = "jmx.operation";
-
     private static final String JMX_READ = "jmx";
+    private static final int SOCKET_TIMEOUT = 10 * 1000; // wait for at most 10 seconds for a response
+    private static final int CONNECTION_TIMEOUT = 5 * 1000; // wait for at most 5 seconds for
+                                                            // the connection to be established
 
     private static final Logger logger = LoggerFactory
         .getLogger(JolokiaChecker.class);
+    
+    // Performance Metrics
+    private static final Histogram _requestSizes = Metrics.newHistogram(JolokiaChecker.class, "request-sizes");
+    private static final Timer _requestTime = Metrics.newTimer(JolokiaChecker.class, "request-time", TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
 
     private J4pClient _j4pClient;
 
     private Map<String, String> _foundKeys = new HashMap<String, String>();
     private Map<String, String> _errorKeys = new HashMap<String, String>();
-    
-    // Performance Metrics
-    private static final Histogram _requestSizes = Metrics.newHistogram(JolokiaChecker.class, "request-sizes");
-    private static final Timer _requestTime = Metrics.newTimer(JolokiaChecker.class, "request-time", TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
 
     protected JolokiaChecker(JSONObject request) throws ZabbixException {
         this(request, null);
@@ -101,7 +103,8 @@ public class JolokiaChecker extends ItemChecker {
 
             logger.debug("Jolokia URL is: " + jolokiaUrl);
             J4pClientBuilder builder = J4pClient.url(jolokiaUrl)
-                .connectionTimeout(5000);
+                    .socketTimeout(SOCKET_TIMEOUT)
+                    .connectionTimeout(CONNECTION_TIMEOUT);
 
             if (null != username) {
                 builder.user(username).password(password);
