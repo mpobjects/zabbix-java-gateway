@@ -28,11 +28,12 @@ PID_FILE="/tmp/zabbix_java.pid"
 
 ### Option: zabbix.startPollers
 #	Number of worker threads to start.
+#   0 specifies a demand based thread pool will be used.
 #
 # Mandatory: no
-# Range: 1-1000
+# Range: 0-1000
 # Default:
-# START_POLLERS=5
+# START_POLLERS=0
 
 ### Option: zabbix.apiUser
 #	The API username to use

@@ -26,6 +26,8 @@ import java.util.concurrent.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.yammer.metrics.Metrics;
+
 public class JavaGateway
 {
 	private static final Logger logger = LoggerFactory.getLogger(JavaGateway.class);
@@ -67,13 +69,27 @@ public class JavaGateway
 			logger.info("listening on {}:{}", socket.getInetAddress(), socket.getLocalPort());
 
 			int startPollers = ConfigurationManager.getIntegerParameterValue(ConfigurationManager.START_POLLERS);
-			ExecutorService threadPool = new ThreadPoolExecutor(
-					startPollers,
-					startPollers,
-					30L, TimeUnit.SECONDS,
-					new ArrayBlockingQueue<Runnable>(startPollers),
-					new ThreadPoolExecutor.CallerRunsPolicy());
-			logger.debug("created a thread pool of {} pollers", startPollers);
+			ExecutorService threadPool = null;
+			if (startPollers == 0) {
+				// Mimic a cached thread pool (unbounded)
+				threadPool = new InstrumentedThreadPoolExecutor(
+						startPollers,
+						Integer.MAX_VALUE,
+						10L, TimeUnit.MINUTES,
+						new SynchronousQueue<Runnable>(),
+						new ThreadPoolExecutor.CallerRunsPolicy(),
+						Metrics.defaultRegistry());
+			}
+			else {
+			    threadPool = new InstrumentedThreadPoolExecutor(
+						startPollers,
+						startPollers,
+						60L, TimeUnit.SECONDS,
+						new ArrayBlockingQueue<Runnable>(startPollers),
+						new ThreadPoolExecutor.CallerRunsPolicy(),
+						Metrics.defaultRegistry());
+			}
+			logger.debug("created a thread pool of {} pollers", startPollers == 0 ? "unlimited" : startPollers);
 
 			while (true)
 				threadPool.execute(new SocketProcessor(socket.accept()));
