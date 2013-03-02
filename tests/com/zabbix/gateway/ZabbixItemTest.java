@@ -224,7 +224,7 @@ public class ZabbixItemTest
 
 				try
 				{
-					String arg = item.getArgument(index);
+					item.getArgument(index);
 				}
 				catch (Exception caught)
 				{
