@@ -64,6 +64,7 @@ public class ZabbixApi {
     final static String OUTPUT_SHORTEN = "shorten";
     final static String AUTH = "auth";
     final static String HOST_ID = "hostid";
+    final static String TEMPLATE_ID = "templateid";
     final static String HOST_IDS = "hostids";
     final static String SELECT_TEMPLATES = "selectParentTemplates";
     final static String OUTPUT_REFER = "refer";
@@ -139,9 +140,16 @@ public class ZabbixApi {
         if (result.has(PARENT_TEMPLATES)) {
         	JSONArray parentTemplates = result.getJSONArray(PARENT_TEMPLATES);
         	for (int i = 0; i < parentTemplates.length(); i++) {
-        		hostIds.add(parentTemplates.getJSONObject(i).getString(HOST_ID));
+        		JSONObject parentObj = parentTemplates.getJSONObject(i);
+        		// Zabbix 2.2 changed the API here to return "template_id"
+        		// instead of "host_id" for the parent templates
+        		if (parentObj.has(TEMPLATE_ID)) {
+        			hostIds.add(parentObj.getString(TEMPLATE_ID));
+        		}
+        		else if (parentObj.has(HOST_ID)) {
+        			hostIds.add(parentObj.getString(HOST_ID));
+        		}
         	}
-        	
         }
         
         return hostIds;
