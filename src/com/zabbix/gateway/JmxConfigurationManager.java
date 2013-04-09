@@ -65,38 +65,48 @@ public class JmxConfigurationManager {
     public static JmxConfiguration getConfig(String ip, int port) {
         // See if we can use the cached value
         String configKey = buildMapKey(ip, port);
-        if (_jmxConfigs.containsKey(configKey)) {
-            JmxConfiguration jmxConfig = _jmxConfigs.get(configKey);
-            if (!isStale(jmxConfig)) {
-                return jmxConfig;
+        JmxConfiguration oldConfig = _jmxConfigs.get(configKey);
+        if (oldConfig != null) {
+            if (!isStale(oldConfig)) {
+                return oldConfig;
             }
             logger.debug(String.format(
                         "Configuration is stale for connection - %s - refetching the configuration",
                         configKey));
         }
 
-        JmxConfiguration config = retrieveConfig(ip, port);
+        // Try to retrieve the configuration. If we're just refreshing the configuration
+        // and we're unable to access the frontend, use the old configuration
+        JmxConfiguration config = oldConfig;
+		try {
+			config = retrieveConfig(ip, port);
+		} catch (IOException e) {
+			logger.error("Unable to connect to the frontend to update interface - {}:{} - {}",
+					new Object[]{ip, port, e.getMessage()});
+			if (config == null) {
+				config = new JmxConfiguration(ip, port);
+			}
+		} catch (JSONException e) {
+			logger.error("A parsing exception occurred when updating interface - {}:{} - {}",
+					new Object[]{ip, port, e.getMessage()});
+			if (config == null) {
+				config = new JmxConfiguration(ip, port);
+			}
+		}
         _jmxConfigs.put(configKey, config);
 
         return config;
     }
 
-    private static final JmxConfiguration retrieveConfig(String ip, int port) {
+    private static final JmxConfiguration retrieveConfig(String ip, int port) 
+            throws IOException, JSONException {
         JmxConfiguration config = null;
-        try {
-        	// Try to resolve the protocol and endpoint
-        	// macros for the host using the Zabbix API
-            List<String> hostIds = _zabbixApi.getHostIdsForConnection(ip, port);
-            String protocol = _zabbixApi.resolveHostMacro(hostIds, MACRO_JMX_PROTOCOL);
-            String endpoint = _zabbixApi.resolveHostMacro(hostIds, MACRO_JMX_ENDPOINT);
-            config = new JmxConfiguration(protocol, ip, port, endpoint);
-        }
-        catch (IOException ignore) {
-            config = new JmxConfiguration(ip, port);
-        }
-        catch (JSONException ignore) {
-            config = new JmxConfiguration(ip, port);
-        }
+    	// Try to resolve the protocol and endpoint
+    	// macros for the host using the Zabbix API
+        List<String> hostIds = _zabbixApi.getHostIdsForConnection(ip, port);
+        String protocol = _zabbixApi.resolveHostMacro(hostIds, MACRO_JMX_PROTOCOL);
+        String endpoint = _zabbixApi.resolveHostMacro(hostIds, MACRO_JMX_ENDPOINT);
+        config = new JmxConfiguration(protocol, ip, port, endpoint);
 
         logger.debug("JMX Configuration is: " + config.getUrl());
         return config;

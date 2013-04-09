@@ -72,6 +72,9 @@ public class ZabbixApi {
     final static String PARENT_TEMPLATES = "parentTemplates";
     final static String MACRO = "macro";
     final static String VALUE = "value";
+    
+    final static int SOCKET_TIMEOUT = 1000; // 1 second
+    final static int READ_TIMEOUT = 2000; // 2 seconds
 
     private String _zabbixConn;
     private String _authKey;
@@ -268,6 +271,9 @@ public class ZabbixApi {
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
         conn.setDoInput(true);
+        // Set timeouts so we don't hang for an unnecessary time
+        conn.setConnectTimeout(SOCKET_TIMEOUT);
+        conn.setReadTimeout(READ_TIMEOUT);
         wr = new OutputStreamWriter(conn.getOutputStream());
         
         /*Request*/

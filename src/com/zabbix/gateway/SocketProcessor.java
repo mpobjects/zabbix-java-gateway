@@ -49,7 +49,7 @@ class SocketProcessor implements Runnable
 		logger.debug("starting to process incoming connection");
 
 		BinaryProtocolSpeaker speaker = null;
-
+		JmxConfiguration jmxConfig = null;
 		try
 		{
 			speaker = new BinaryProtocolSpeaker(socket);
@@ -57,17 +57,17 @@ class SocketProcessor implements Runnable
 			JSONObject request = new JSONObject(speaker.getRequest());
 
 			ItemChecker checker;
-
+            
 			if (request.getString(ItemChecker.JSON_TAG_REQUEST).equals(ItemChecker.JSON_REQUEST_INTERNAL))
 				checker = new InternalItemChecker(request);
 			else if (request.getString(ItemChecker.JSON_TAG_REQUEST).equals(ItemChecker.JSON_REQUEST_JMX)) {
-				JmxConfiguration jmxConfig = JmxConfigurationManager.getConfig(request.getString(ItemChecker.JSON_TAG_CONN),
-					                                                    request.getInt(ItemChecker.JSON_TAG_PORT));
+				jmxConfig = JmxConfigurationManager.getConfig(request.getString(ItemChecker.JSON_TAG_CONN),
+                                                   request.getInt(ItemChecker.JSON_TAG_PORT));
 				if (jmxConfig.getProtocol().startsWith("http")) {
-					checker = new JolokiaChecker(request);
+					checker = new JolokiaChecker(request, jmxConfig);
 				}
 				else {
-					checker = new JMXItemChecker(request);
+					checker = new JMXItemChecker(request, jmxConfig);
 				}
 			}	
 			else
@@ -86,11 +86,17 @@ class SocketProcessor implements Runnable
 			response.put(ItemChecker.JSON_TAG_RESPONSE, ItemChecker.JSON_RESPONSE_SUCCESS);
 			response.put(ItemChecker.JSON_TAG_DATA, values);
 
-			speaker.sendResponse(response.toString(2));
+			speaker.sendResponse(response.toString());
 		}
 		catch (Exception e1)
 		{
-			logger.warn("error processing request", e1);
+			if (jmxConfig != null) {
+			    logger.warn("error processing request for {}:{} - {}", new Object[]{jmxConfig.getIp(),
+			    		jmxConfig.getPort(), HelperFunctionChest.getRootCauseMessage(e1)});
+			}
+			else {
+				logger.warn("error processing request: {}", HelperFunctionChest.getRootCauseMessage(e1));
+			}
 
 			try
 			{
@@ -102,7 +108,7 @@ class SocketProcessor implements Runnable
 			}
 			catch (Exception e2)
 			{
-				logger.warn("error sending failure notification", e2);
+				logger.warn("error sending failure notification - {}", e2.getMessage());
 			}
 		}
 		finally

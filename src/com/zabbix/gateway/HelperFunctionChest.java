@@ -113,4 +113,18 @@ class HelperFunctionChest
     public static String scientificToPlain(String value) throws NumberFormatException {
         return new BigDecimal(value).toPlainString();
     }
+    
+    /**
+     * Gets the message of the root cause exception
+     * @param ex
+     * @return
+     */
+    public static String getRootCauseMessage(Throwable ex) {
+    	Throwable root = ex;
+    	while (root.getCause() != null) {
+    		root = root.getCause();
+    	}
+    	
+    	return root.getMessage();
+    }
 }
