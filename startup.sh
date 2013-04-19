@@ -15,7 +15,7 @@ if [ -z "$PID_FILE" ]; then
 	JAVA_OPTIONS="$JAVA_OPTIONS -Dlogback.configurationFile=logback-console.xml"
 fi
 
-CLASSPATH="lib"
+CLASSPATH="lib:bin"
 for jar in {lib,bin}/*.jar; do
 	if [[ $jar != *junit* ]]; then
 		CLASSPATH="$CLASSPATH:$jar"

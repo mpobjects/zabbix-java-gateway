@@ -53,6 +53,7 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
+import com.zabbix.security.SecurityUtils;
 
 public class JolokiaChecker extends ItemChecker {
 
@@ -73,33 +74,28 @@ public class JolokiaChecker extends ItemChecker {
 
     private Map<String, String> _foundKeys = new HashMap<String, String>();
     private Map<String, String> _errorKeys = new HashMap<String, String>();
-
-    protected JolokiaChecker(JSONObject request) throws ZabbixException {
-        this(request, null);
-    }
     
     protected JolokiaChecker(JSONObject request, JmxConfiguration config) throws ZabbixException {
+    	this(request, config, null);
+    }
+    
+    protected JolokiaChecker(JSONObject request, JmxConfiguration config,
+    		SecurityUtils securityUtils) throws ZabbixException {
     	super(request);
 
         try {
-            String conn = request.getString(JSON_TAG_CONN);
-            int port = request.getInt(JSON_TAG_PORT);
-
             String username = request.optString(JSON_TAG_USERNAME, null);
             String password = request.optString(JSON_TAG_PASSWORD, null);
-
+            if (securityUtils != null) {
+            	password = securityUtils.decrypt(password);
+            }
+            
             if (null != username && null == password || null == username
                     && null != password)
                 throw new IllegalArgumentException(
                     "invalid username and password nullness combination");
 
-            String jolokiaUrl = null;
-            if (config == null) {
-            	jolokiaUrl = buildJolokiaUrl(JmxConfigurationManager.getConfig(conn, port));
-            }
-            else {
-            	jolokiaUrl = buildJolokiaUrl(config);
-            }
+            String jolokiaUrl = buildJolokiaUrl(config);
 
             logger.debug("Jolokia URL is: " + jolokiaUrl);
             J4pClientBuilder builder = J4pClient.url(jolokiaUrl)

@@ -39,6 +39,8 @@ import org.json.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.zabbix.security.SecurityUtils;
+
 class JMXItemChecker extends ItemChecker
 {
 	private static final Logger logger = LoggerFactory.getLogger(JMXItemChecker.class);
@@ -50,31 +52,28 @@ class JMXItemChecker extends ItemChecker
 	private final String username;
 	private final String password;
 
-	public JMXItemChecker(JSONObject request) throws ZabbixException
-	{
-		this(request, null);
+	protected JMXItemChecker(JSONObject request, JmxConfiguration config) throws ZabbixException {
+		this(request, config, null);
 	}
 	
-	protected JMXItemChecker(JSONObject request, JmxConfiguration config) throws ZabbixException {
+	protected JMXItemChecker(JSONObject request, JmxConfiguration config,
+			SecurityUtils securityUtils) throws ZabbixException {
 		super(request);
 
 		try
 		{
-			String conn = request.getString(JSON_TAG_CONN);
-			int port = request.getInt(JSON_TAG_PORT);
-
-			if (config == null) {
-				url = new JMXServiceURL(JmxConfigurationManager.getConfig(conn, port).getUrl());
-			}
-			else {
-				url = new JMXServiceURL(config.getUrl());
-			}
+			url = new JMXServiceURL(config.getUrl());
 			
 			jmxc = null;
 			mbsc = null;
 
 			username = request.optString(JSON_TAG_USERNAME, null);
-			password = request.optString(JSON_TAG_PASSWORD, null);
+			if (securityUtils != null) {
+            	password = securityUtils.decrypt(request.optString(JSON_TAG_PASSWORD, null));
+            }
+			else {
+				password = request.optString(JSON_TAG_PASSWORD, null);
+			}
 
 			if (null != username && null == password || null == username && null != password)
 				throw new IllegalArgumentException("invalid username and password nullness combination");

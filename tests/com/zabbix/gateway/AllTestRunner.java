@@ -27,7 +27,8 @@ public class AllTestRunner
 		{
 			"IntegerValidatorTest",
 			"ZabbixItemTest",
-			"JolokiaCheckerTest"
+			"JolokiaCheckerTest",
+			"JMXItemCheckerTest"
 		};
 
 		for (int i = 0; i < testClasses.length; i++)

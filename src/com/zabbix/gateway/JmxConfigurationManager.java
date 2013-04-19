@@ -41,18 +41,16 @@ public class JmxConfigurationManager {
 
     private static final Logger logger = LoggerFactory
         .getLogger(JmxConfigurationManager.class);
-    private static final ConcurrentMap<String, JmxConfiguration> _jmxConfigs = new ConcurrentHashMap<String, JmxConfiguration>();
 
     private static final long STALE_THRESHOLD = 1000 * 60 * 5; // 5 minute
                                                                // threshold
-    private static final ZabbixApi _zabbixApi;
+    private final ZabbixApi _zabbixApi;
+    private final ConcurrentMap<String, JmxConfiguration> _jmxConfigs =
+    		new ConcurrentHashMap<String, JmxConfiguration>();
     
-    static {
-    	_zabbixApi = new ZabbixApi(
-    			(InetAddress) ConfigurationManager.getParameter(ConfigurationManager.API_HOST).getValue(),
-    			ConfigurationManager.getIntegerParameterValue(ConfigurationManager.API_PORT),
-    			ConfigurationManager.getStringParameterValue(ConfigurationManager.API_USER),
-    	        ConfigurationManager.getStringParameterValue(ConfigurationManager.API_PASSWORD));
+    public JmxConfigurationManager(InetAddress apiHost, Integer apiPort, String apiUser, String apiPassword) {
+    	_zabbixApi = new ZabbixApi(apiHost, apiPort,
+    			apiUser, apiPassword);
     }
 
     /**
@@ -62,7 +60,7 @@ public class JmxConfigurationManager {
      * @param port The Host's JMX interface port
      * @return The Host's JMX Configuration
      */
-    public static JmxConfiguration getConfig(String ip, int port) {
+    public JmxConfiguration getConfig(String ip, int port) {
         // See if we can use the cached value
         String configKey = buildMapKey(ip, port);
         JmxConfiguration oldConfig = _jmxConfigs.get(configKey);
@@ -98,7 +96,7 @@ public class JmxConfigurationManager {
         return config;
     }
 
-    private static final JmxConfiguration retrieveConfig(String ip, int port) 
+    private JmxConfiguration retrieveConfig(String ip, int port) 
             throws IOException, JSONException {
         JmxConfiguration config = null;
     	// Try to resolve the protocol and endpoint
@@ -112,11 +110,11 @@ public class JmxConfigurationManager {
         return config;
     }
 
-    private static final String buildMapKey(String ip, int port) {
+    private String buildMapKey(String ip, int port) {
         return ip + ":" + port;
     }
 
-    private static boolean isStale(JmxConfiguration config) {
+    private boolean isStale(JmxConfiguration config) {
         if (config.getDateCreated() + STALE_THRESHOLD < System.currentTimeMillis()) {
             return true;
         }

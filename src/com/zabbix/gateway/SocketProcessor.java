@@ -32,16 +32,22 @@ import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
+import com.zabbix.security.SecurityUtils;
 
 class SocketProcessor implements Runnable
 {
 	private static final Logger logger = LoggerFactory.getLogger(SocketProcessor.class);
 
-	private Socket socket;
+	private final Socket socket;
+	private final JmxConfigurationManager jmxManager;
+	private final SecurityUtils securityUtils;
 
-	public SocketProcessor(Socket socket)
+	public SocketProcessor(Socket socket, JmxConfigurationManager jmxManager,
+			SecurityUtils securityUtils)
 	{
 		this.socket = socket;
+		this.jmxManager = jmxManager;
+		this.securityUtils = securityUtils;
 	}
 
 	public void run()
@@ -61,13 +67,13 @@ class SocketProcessor implements Runnable
 			if (request.getString(ItemChecker.JSON_TAG_REQUEST).equals(ItemChecker.JSON_REQUEST_INTERNAL))
 				checker = new InternalItemChecker(request);
 			else if (request.getString(ItemChecker.JSON_TAG_REQUEST).equals(ItemChecker.JSON_REQUEST_JMX)) {
-				jmxConfig = JmxConfigurationManager.getConfig(request.getString(ItemChecker.JSON_TAG_CONN),
+				jmxConfig = jmxManager.getConfig(request.getString(ItemChecker.JSON_TAG_CONN),
                                                    request.getInt(ItemChecker.JSON_TAG_PORT));
 				if (jmxConfig.getProtocol().startsWith("http")) {
-					checker = new JolokiaChecker(request, jmxConfig);
+					checker = new JolokiaChecker(request, jmxConfig, this.securityUtils);
 				}
 				else {
-					checker = new JMXItemChecker(request, jmxConfig);
+					checker = new JMXItemChecker(request, jmxConfig, this.securityUtils);
 				}
 			}	
 			else

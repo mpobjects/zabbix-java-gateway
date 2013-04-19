@@ -58,5 +58,11 @@
         <copy file="startup.sh" tofile="${zabbix_java_distro}/startup.sh"/>
         <copy file="shutdown.sh" tofile="${zabbix_java_distro}/shutdown.sh"/>
         <copy file="settings.sh" tofile="${zabbix_java_distro}/settings.sh"/>
+        <copy file="key_generator.sh" tofile="${zabbix_java_distro}/key_generator.sh"/>
+
+        <!-- Zip everything up -->
+        <zip destfile="zabbix_java.zip"
+            basedir="zabbix_java"
+        />
     </target>
 </project>
