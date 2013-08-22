@@ -289,8 +289,8 @@ public class ZabbixApi {
             builder.append(part);
         }
         String response = builder.toString();
-        JSONObject resp = new JSONObject(response);
         logger.debug("Response=" + response);
+        JSONObject resp = new JSONObject(response);
 
         /*Clean up*/
         conn.disconnect();
