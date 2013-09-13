@@ -24,7 +24,6 @@ import java.util.Formatter;
 import java.util.concurrent.TimeUnit;
 
 import org.json.*;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,8 +80,8 @@ class SocketProcessor implements Runnable
 
 			logger.debug("dispatched request to class {}", checker.getClass().getName());
 			
-			
-			MetricName mName = new MetricName(checker.getClass(), "get-values");
+			Metrics.newHistogram(checker.getClass(), "request-sizes").update(checker.getNumberOfItems());;
+			MetricName mName = new MetricName(checker.getClass(), "total-request-time");
 			Timer timer = Metrics.newTimer(mName, TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
 			TimerContext context = timer.time();
 			JSONArray values = checker.getValues();

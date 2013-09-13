@@ -24,9 +24,9 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import javax.management.MBeanAttributeInfo;
-import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.TabularDataSupport;
@@ -35,19 +35,23 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
 import org.json.*;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Timer;
 import com.zabbix.security.SecurityUtils;
 
 class JMXItemChecker extends ItemChecker
 {
 	private static final Logger logger = LoggerFactory.getLogger(JMXItemChecker.class);
+	
+	// Timer to track time spent making remote requests to the remote JVM
+    private static final Timer _requestTime = Metrics.newTimer(JMXItemChecker.class, "remote-request-time", TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
 
 	private final JMXServiceURL url;
 	private JMXConnector jmxc;
-	private MBeanServerConnection mbsc;
+	private TimedMBeanServerConnection mbsc;
 
 	private final String username;
 	private final String password;
@@ -101,10 +105,14 @@ class JMXItemChecker extends ItemChecker
 
 			logger.debug("connecting to JMX agent at {}", url);
 			jmxc = JMXConnectorFactory.connect(url, env);
-			mbsc = jmxc.getMBeanServerConnection();
+			// Wrap the MBeanServerConnection so we can track the performance
+			mbsc = new TimedMBeanServerConnection(jmxc.getMBeanServerConnection());
 
-			for (String key : keys)
+			for (String key : keys) {
 				values.put(getJSONValue(key));
+			}
+			
+			_requestTime.update(mbsc.getTotalNetworkTime(), TimeUnit.NANOSECONDS);
 		}
 		catch (Exception e)
 		{

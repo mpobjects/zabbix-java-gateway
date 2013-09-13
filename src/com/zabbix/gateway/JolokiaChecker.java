@@ -50,12 +50,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.core.TimerContext;
 import com.zabbix.security.SecurityUtils;
 
-public class JolokiaChecker extends ItemChecker {
+class JolokiaChecker extends ItemChecker {
 
     private static final String JMX_OPERATION = "jmx.operation";
     private static final String JMX_READ = "jmx";
@@ -66,9 +65,8 @@ public class JolokiaChecker extends ItemChecker {
     private static final Logger logger = LoggerFactory
         .getLogger(JolokiaChecker.class);
     
-    // Performance Metrics
-    private static final Histogram _requestSizes = Metrics.newHistogram(JolokiaChecker.class, "request-sizes");
-    private static final Timer _requestTime = Metrics.newTimer(JolokiaChecker.class, "request-time", TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
+    // Timer to track the performance when making bulk requests over the network
+    private static final Timer _requestTime = Metrics.newTimer(JolokiaChecker.class, "remote-request-time", TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
 
     private J4pClient _j4pClient;
 
@@ -142,7 +140,6 @@ public class JolokiaChecker extends ItemChecker {
 
     @SuppressWarnings("unchecked")
     private void jolokiaRead() throws J4pException {
-        _requestSizes.update(keys.size());
         List<J4pRequest> allRequests = new ArrayList<J4pRequest>();
         List<ZabbixItem> standardRequestKeys = new ArrayList<ZabbixItem>();
         List<J4pReadRequest> compositeRequests = new ArrayList<J4pReadRequest>();
