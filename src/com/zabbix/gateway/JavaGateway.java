@@ -113,8 +113,7 @@ public class JavaGateway
 			// Setup the JmxConfigurationManager which will handle retrieving the proper JmxConfiguration
 			// to support additional properties such as specifying the JMX protocol and endpoint
 			JmxConfigurationManager jmxManager = new JmxConfigurationManager(
-					(InetAddress) ConfigurationManager.getParameter(ConfigurationManager.API_HOST).getValue(),
-	    			ConfigurationManager.getIntegerParameterValue(ConfigurationManager.API_PORT),
+					ConfigurationManager.getStringParameterValue(ConfigurationManager.ZABBIX_URL),
 	    			ConfigurationManager.getStringParameterValue(ConfigurationManager.API_USER),
 	    	        apiPassword);
 			

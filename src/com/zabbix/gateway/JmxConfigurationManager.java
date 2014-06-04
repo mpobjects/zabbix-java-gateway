@@ -20,7 +20,6 @@
 package com.zabbix.gateway;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -48,8 +47,8 @@ public class JmxConfigurationManager {
     private final ConcurrentMap<String, JmxConfiguration> _jmxConfigs =
     		new ConcurrentHashMap<String, JmxConfiguration>();
     
-    public JmxConfigurationManager(InetAddress apiHost, Integer apiPort, String apiUser, String apiPassword) {
-    	_zabbixApi = new ZabbixApi(apiHost, apiPort,
+    public JmxConfigurationManager(String zabbixUrl, String apiUser, String apiPassword) {
+    	_zabbixApi = new ZabbixApi(zabbixUrl,
     			apiUser, apiPassword);
     }
 

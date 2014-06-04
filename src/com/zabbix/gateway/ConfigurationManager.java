@@ -35,10 +35,9 @@ class ConfigurationManager
 	public static final String LISTEN_IP = "listenIP";
 	public static final String LISTEN_PORT = "listenPort";
 	public static final String START_POLLERS = "startPollers";
+	public static final String ZABBIX_URL = "zabbixUrl";
 	public static final String API_USER = "apiUser";
 	public static final String API_PASSWORD = "apiPassword";
-	public static final String API_HOST = "apiHost";
-	public static final String API_PORT = "apiPort";
 
 	private static ConfigurationParameter[] parameters =
 	{
@@ -81,10 +80,8 @@ class ConfigurationManager
 		new ConfigurationParameter(API_PASSWORD, ConfigurationParameter.TYPE_STRING, "zabbix",
 				null,
 				null),
-		new ConfigurationParameter(API_HOST, ConfigurationParameter.TYPE_INETADDRESS, getAddressDefault(),
-				null,
-				null),
-		new ConfigurationParameter(API_PORT, ConfigurationParameter.TYPE_INTEGER, 80,
+		new ConfigurationParameter(ZABBIX_URL, ConfigurationParameter.TYPE_STRING,
+				"http://localhost/zabbix",
 				null,
 				null)
 	};

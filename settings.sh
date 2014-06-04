@@ -35,6 +35,14 @@ PID_FILE="/tmp/zabbix_java.pid"
 # Default:
 # START_POLLERS=0
 
+### Option: zabbix.zabbixUrl
+#   The URL of the zabbix front end server
+#   which will be used for API calls.
+#
+# Mandatory: no
+# Default:
+# ZABBIX_URL=http://localhost/zabbix
+
 ### Option: zabbix.apiUser
 #	The API username to use
 #
@@ -48,20 +56,3 @@ PID_FILE="/tmp/zabbix_java.pid"
 # Mandatory: no
 # Default:
 # API_PASSWORD=zabbix
-
-### Option: zabbix.apiHost
-#   The host name or IP address
-#   of the Zabbix front end which
-#   the API connection will use.
-#
-# Mandatory: no
-# Default:
-# API_HOST=localhost
-
-### Option: zabbix.apiPort
-#   The Zabbix frontend port for API usage.
-#
-# Mandatory: no
-# Default:
-# API_PORT=80
-

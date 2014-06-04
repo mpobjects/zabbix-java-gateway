@@ -25,7 +25,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 import java.net.HttpURLConnection;
-import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -76,20 +76,31 @@ public class ZabbixApi {
     final static int SOCKET_TIMEOUT = 1000; // 1 second
     final static int READ_TIMEOUT = 2000; // 2 seconds
 
-    private String _zabbixConn;
-    private String _authKey;
-    private int _requestId;
+    private final URL _zabbixApiUrl;
+    private final String _authKey;
+    private final int _requestId;
     
     /**
      * Creates a new Zabbix API connection and logs it in.
-     * @param host The Zabbix API frontend host or IP address
-     * @param port The Zabbix API frontend port
+     * @param zabbixUrl The root url of the Zabbix server e.g. http://myzabbixserver
      * @param username The Zabbix API username (must be a valid user)
      * @param password The Zabbix API password for the user
      */
-    public ZabbixApi(InetAddress host, Integer port, String username, String password) {
-    	_zabbixConn =  host.getHostAddress() + ":" + port;
-    	logger.debug("Initializing Zabbix API with connection: " + _zabbixConn);
+    public ZabbixApi(String zabbixUrl, String username, String password) {
+    	final StringBuilder urlBuilder = new StringBuilder(zabbixUrl);
+    	if (!zabbixUrl.endsWith("/")) {
+    		urlBuilder.append('/');
+    	}
+    	urlBuilder.append("api_jsonrpc.php");
+    	
+    	try {
+			_zabbixApiUrl = new URL(urlBuilder.toString());
+		} 
+    	catch (MalformedURLException e) {
+			throw new IllegalArgumentException("An invalid Zabbix URL was specified: " + zabbixUrl);
+		}
+    	
+    	logger.debug("Initializing Zabbix API with connection: " + _zabbixApiUrl);
     	_requestId = 1;
     	_authKey = login(username, password, _requestId);
     }
@@ -264,9 +275,8 @@ public class ZabbixApi {
         BufferedReader rd;
         OutputStreamWriter wr;
         HttpURLConnection conn;
-        URL zabbixApiUrl = new URL("http://" + _zabbixConn + "/zabbix/api_jsonrpc.php");
         
-        conn = (HttpURLConnection)zabbixApiUrl.openConnection();
+        conn = (HttpURLConnection)_zabbixApiUrl.openConnection();
         conn.setRequestProperty(CONTENT_TYPE, APP_JRPC);
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
