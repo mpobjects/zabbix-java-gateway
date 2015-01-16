@@ -44,7 +44,7 @@ public class ZabbixApi {
 	final static String JSON_RPC = "jsonrpc";
     final static String JSON_RPC_VER = "2.0";
     final static String METHOD = "method";
-    final static String CALL_AUTHENTICATE = "user.authenticate";
+    final static String CALL_AUTHENTICATE = "user.login";
     final static String CALL_MACRO_GET = "usermacro.get";
     final static String CALL_HOST_GET = "host.get";
     final static String PARAMS = "params";
