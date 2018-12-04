@@ -21,6 +21,8 @@ package com.zabbix.gateway;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +35,9 @@ class ConfigurationManager
 	public static final String LISTEN_IP = "listenIP";
 	public static final String LISTEN_PORT = "listenPort";
 	public static final String START_POLLERS = "startPollers";
+	public static final String ZABBIX_URL = "zabbixUrl";
+	public static final String API_USER = "apiUser";
+	public static final String API_PASSWORD = "apiPassword";
 
 	private static ConfigurationParameter[] parameters =
 	{
@@ -66,8 +71,18 @@ class ConfigurationManager
 		new ConfigurationParameter(LISTEN_PORT, ConfigurationParameter.TYPE_INTEGER, 10052,
 				new IntegerValidator(1024, 32767),
 				null),
-		new ConfigurationParameter(START_POLLERS, ConfigurationParameter.TYPE_INTEGER, 5,
-				new IntegerValidator(1, 1000),
+		new ConfigurationParameter(START_POLLERS, ConfigurationParameter.TYPE_INTEGER, 0,
+				new IntegerValidator(0, 1000),
+				null),
+		new ConfigurationParameter(API_USER, ConfigurationParameter.TYPE_STRING, "admin",
+				null,
+				null),
+		new ConfigurationParameter(API_PASSWORD, ConfigurationParameter.TYPE_STRING, "zabbix",
+				null,
+				null),
+		new ConfigurationParameter(ZABBIX_URL, ConfigurationParameter.TYPE_STRING,
+				"http://localhost/zabbix",
+				null,
 				null)
 	};
 
@@ -102,9 +117,22 @@ class ConfigurationManager
 	{
 		return (Integer)getParameter(name).getValue();
 	}
+	
+	public static String getStringParameterValue(String name) {
+		return getParameter(name).getValue().toString();
+	}
 
 	public static String getPackage()
 	{
 		return "com.zabbix.gateway";
+	}
+	
+	private static InetAddress getAddressDefault() {
+		try {
+			return InetAddress.getLocalHost();
+		} catch (UnknownHostException e) {
+			logger.error("An exception occurred when trying to resolve localhost");
+			throw new RuntimeException(e);
+		}
 	}
 }

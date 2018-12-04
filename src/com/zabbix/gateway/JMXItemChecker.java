@@ -19,12 +19,14 @@
 
 package com.zabbix.gateway;
 
+import java.lang.reflect.Array;
 import java.util.HashMap;
-import java.util.Vector;
+import java.util.Hashtable;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import javax.management.MBeanAttributeInfo;
-import javax.management.MBeanInfo;
-import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.TabularDataSupport;
@@ -33,36 +35,49 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
 import org.json.*;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Timer;
+import com.zabbix.security.SecurityUtils;
 
 class JMXItemChecker extends ItemChecker
 {
 	private static final Logger logger = LoggerFactory.getLogger(JMXItemChecker.class);
+	
+	// Timer to track time spent making remote requests to the remote JVM
+    private static final Timer _requestTime = Metrics.newTimer(JMXItemChecker.class, "remote-request-time", TimeUnit.MILLISECONDS, TimeUnit.MINUTES);
 
-	private JMXServiceURL url;
+	private final JMXServiceURL url;
 	private JMXConnector jmxc;
-	private MBeanServerConnection mbsc;
+	private TimedMBeanServerConnection mbsc;
 
-	private String username;
-	private String password;
+	private final String username;
+	private final String password;
 
-	public JMXItemChecker(JSONObject request) throws ZabbixException
-	{
+	protected JMXItemChecker(JSONObject request, JmxConfiguration config) throws ZabbixException {
+		this(request, config, null);
+	}
+	
+	protected JMXItemChecker(JSONObject request, JmxConfiguration config,
+			SecurityUtils securityUtils) throws ZabbixException {
 		super(request);
 
 		try
 		{
-			String conn = request.getString(JSON_TAG_CONN);
-			int port = request.getInt(JSON_TAG_PORT);
-
-			url = new JMXServiceURL("service:jmx:rmi:///jndi/rmi://" + conn + ":" + port + "/jmxrmi");
+			url = new JMXServiceURL(config.getUrl());
+			
 			jmxc = null;
 			mbsc = null;
 
 			username = request.optString(JSON_TAG_USERNAME, null);
-			password = request.optString(JSON_TAG_PASSWORD, null);
+			if (securityUtils != null) {
+            	password = securityUtils.decrypt(request.optString(JSON_TAG_PASSWORD, null));
+            }
+			else {
+				password = request.optString(JSON_TAG_PASSWORD, null);
+			}
 
 			if (null != username && null == password || null == username && null != password)
 				throw new IllegalArgumentException("invalid username and password nullness combination");
@@ -90,10 +105,14 @@ class JMXItemChecker extends ItemChecker
 
 			logger.debug("connecting to JMX agent at {}", url);
 			jmxc = JMXConnectorFactory.connect(url, env);
-			mbsc = jmxc.getMBeanServerConnection();
+			// Wrap the MBeanServerConnection so we can track the performance
+			mbsc = new TimedMBeanServerConnection(jmxc.getMBeanServerConnection());
 
-			for (String key : keys)
+			for (String key : keys) {
 				values.put(getJSONValue(key));
+			}
+			
+			_requestTime.update(mbsc.getTotalNetworkTime(), TimeUnit.NANOSECONDS);
 		}
 		catch (Exception e)
 		{
@@ -155,42 +174,49 @@ class JMXItemChecker extends ItemChecker
 		}
 		else if (item.getKeyId().equals("jmx.discovery"))
 		{
-			if (0 != item.getArgumentCount())
-				throw new ZabbixException("required key format: jmx.discovery");
+			if (item.getArgumentCount() > 1)
+				throw new ZabbixException("required key format: jmx.discovery or jmx.discovery[<ObjectNameWildcard>]");
 
 			JSONArray counters = new JSONArray();
 
-			for (ObjectName name : mbsc.queryNames(null, null))
-			{
-				logger.trace("discovered object '{}'", name);
-
-				for (MBeanAttributeInfo attrInfo : mbsc.getMBeanInfo(name).getAttributes())
+			if (item.getArgumentCount() == 0) {
+				for (ObjectName name : mbsc.queryNames(null, null))
 				{
-					logger.trace("discovered attribute '{}'", attrInfo.getName());
-
-					if (!attrInfo.isReadable())
+					logger.trace("discovered object '{}'", name);
+		
+					for (MBeanAttributeInfo attrInfo : mbsc.getMBeanInfo(name).getAttributes())
 					{
-						logger.trace("attribute not readable, skipping");
-						continue;
-					}
-
-					try
-					{
-						logger.trace("looking for attributes of primitive types");
-						String descr = (attrInfo.getName().equals(attrInfo.getDescription()) ? null : attrInfo.getDescription());
-						findPrimitiveAttributes(counters, name, descr, attrInfo.getName(), mbsc.getAttribute(name, attrInfo.getName()));
-					}
-					catch (Exception e)
-					{
-						Object[] logInfo = {name, attrInfo.getName(), e};
-						logger.trace("processing '{},{}' failed", logInfo);
+						logger.trace("discovered attribute '{}'", attrInfo.getName());
+		
+						if (!attrInfo.isReadable())
+						{
+							logger.trace("attribute not readable, skipping");
+							continue;
+						}
+		
+						try
+						{
+							logger.trace("looking for attributes of primitive types");
+							String descr = (attrInfo.getName().equals(attrInfo.getDescription()) ? null : attrInfo.getDescription());
+							findPrimitiveAttributes(counters, name, descr, attrInfo.getName(), mbsc.getAttribute(name, attrInfo.getName()));
+						}
+						catch (Exception e)
+						{
+							Object[] logInfo = {name, attrInfo.getName(), e};
+							logger.trace("processing '{},{}' failed", logInfo);
+						}
 					}
 				}
+			}
+			else {
+				String objNameWildcard = item.getArgument(1);
+				Set<ObjectName> objectNames = mbsc.queryNames(new ObjectName(objNameWildcard), null);
+				buildDiscoveryOutput(counters, objectNames);
 			}
 
 			JSONObject mapping = new JSONObject();
 			mapping.put(ItemChecker.JSON_TAG_DATA, counters);
-			return mapping.toString(2);
+			return mapping.toString();
 		}
 		else
 			throw new ZabbixException("key ID '%s' is not supported", item.getKeyId());
@@ -205,8 +231,18 @@ class JMXItemChecker extends ItemChecker
 
 		if (fieldNames.equals(""))
 		{
-			if (isPrimitiveAttributeType(dataObject.getClass()))
-				return dataObject.toString();
+			if (isPrimitiveAttributeType(dataObject.getClass())) {
+				String value = dataObject.toString();
+				// Zabbix doesn't like scientific notation so see if
+				// we need to translate it back to numeric.
+				if (HelperFunctionChest.isScientificNotation(value)) {
+					value = HelperFunctionChest.scientificToPlain(value);
+				}
+				return value;
+			}
+			else if (dataObject.getClass().isArray()) {
+				return handleArray(dataObject);
+			}
 			else
 				throw new ZabbixException("data object type is not primitive: %s" + dataObject.getClass());
 		}
@@ -280,4 +316,49 @@ class JMXItemChecker extends ItemChecker
 
 		return HelperFunctionChest.arrayContains(clazzez, clazz);
 	}
+	
+	private void buildDiscoveryOutput(JSONArray counters, Set<ObjectName> objectNames) throws JSONException {
+		for (ObjectName objName : objectNames) {
+        	// Add the full JMX Object Name as a macro
+        	// in the return string
+            JSONObject taskObj = new JSONObject();
+            taskObj.put("{#JMXOBJ}", objName.getCanonicalName());
+            
+        	// Add each property of the Object Name as returned macros
+			Hashtable<String, String> props = objName.getKeyPropertyList();
+			for (Map.Entry<String, String> propEntry : props.entrySet()) {
+				taskObj.put(String.format("{#%s}", propEntry.getKey().toUpperCase()),
+						propEntry.getValue());
+			}
+            counters.put(taskObj);
+        }
+	}
+	
+	private String handleArray(Object dataArray) {
+		StringBuilder builder = new StringBuilder();
+		
+		Object[] castArray;
+		if (dataArray.getClass().getComponentType().isPrimitive()) {
+			int count = Array.getLength(dataArray);
+			castArray = new Object[count];
+
+		    for(int i = 0; i < count; i++){
+		        castArray[i] = Array.get(dataArray, i);          
+		    }   
+		}
+		else {
+			castArray = (Object[]) dataArray;
+		}
+		
+		if (castArray.length == 0) return "";
+
+        for (Object entry : castArray) {
+        	if (entry != null) {
+                builder.append(String.valueOf(entry)).append("\n");
+        	}
+        }
+        
+        // Remove the last newline
+        return builder.substring(0, builder.length() - 1);
+    }
 }

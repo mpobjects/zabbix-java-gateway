@@ -105,6 +105,14 @@ abstract class ItemChecker
 
 		return value;
 	}
+	
+	/**
+	 * Gets the total number of items that this ItemChecker will retrieve.
+	 * @return
+	 */
+	protected int getNumberOfItems() {
+		return keys.size();
+	}
 
 	protected abstract String getStringValue(String key) throws Exception;
 }

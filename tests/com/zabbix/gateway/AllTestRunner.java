@@ -26,7 +26,9 @@ public class AllTestRunner
 		String[] testClasses = new String[]
 		{
 			"IntegerValidatorTest",
-			"ZabbixItemTest"
+			"ZabbixItemTest",
+			"JolokiaCheckerTest",
+			"JMXItemCheckerTest"
 		};
 
 		for (int i = 0; i < testClasses.length; i++)

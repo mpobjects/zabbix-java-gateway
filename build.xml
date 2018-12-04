@@ -1,0 +1,68 @@
+<project name="ZabbixJava" default="build-distro" basedir=".">
+    <description>
+        Zabbix Java Gateway
+    </description>
+
+    <property name="src" location="src"/>
+    <property name="tests" location="tests"/>
+    <property name="build" location="build"/>
+    <property name="bin" location="bin"/>
+    <property name="lib" location="lib"/>
+    <property name="jar_output" location="${bin}/zabbix-java-gateway.jar"/>
+    <property name="zabbix_java_distro" location="zabbix_java"/>
+
+    <!-- Set up the compilation class path -->
+    <path id="compile.class.path">
+        <fileset refid="dependency.lib.files" />
+        <fileset refid="test.dependency.lib.files" />
+    </path>
+
+    <fileset id="dependency.lib.files" dir="lib">
+        <include name="*.jar" />
+    </fileset>
+
+    <fileset id="test.dependency.lib.files" dir="${tests}">
+        <include name="*.jar"/>
+    </fileset>
+
+    <target name="compile-src"
+        description="compile the Zabbix Java source code" >
+        <!-- Create the build/classes directory -->
+        <mkdir dir="${build}/classes"/>
+        <!-- Compile the java code from ${src}/java into ${build} -->
+        <javac destdir="${build}/classes" source="1.6" target="1.6" debug="true">
+            <src path="${src}"/>
+            <classpath refid="compile.class.path" />
+        </javac>
+    </target>
+
+    <!-- Produce Zabbix Gateway jar file -->
+    <target name="justjar" depends="compile-src"
+        description="generate the Zabbix Java source distribution" >
+
+        <!-- Put everything in ${build} into the Zabbix Java Gateway jar file -->
+        <jar jarfile="${jar_output}" basedir="${build}/classes" />
+    </target>
+
+    <target name="build-distro" depends="justjar">
+        <delete dir="${zabbix_java_distro}"/>
+        <mkdir dir="${zabbix_java_distro}"/>
+        <mkdir dir="${zabbix_java_distro}/bin"/>
+        <copy todir="${zabbix_java_distro}/bin">
+            <fileset dir="${bin}/"/>
+        </copy>
+        <mkdir dir="${zabbix_java_distro}/lib"/>
+        <copy todir="${zabbix_java_distro}/lib">
+            <fileset dir="${lib}/"/>
+        </copy>
+        <copy file="startup.sh" tofile="${zabbix_java_distro}/startup.sh"/>
+        <copy file="shutdown.sh" tofile="${zabbix_java_distro}/shutdown.sh"/>
+        <copy file="settings.sh" tofile="${zabbix_java_distro}/settings.sh"/>
+        <copy file="key_generator.sh" tofile="${zabbix_java_distro}/key_generator.sh"/>
+
+        <!-- Zip everything up -->
+        <zip destfile="zabbix_java.zip"
+            basedir="zabbix_java"
+        />
+    </target>
+</project>

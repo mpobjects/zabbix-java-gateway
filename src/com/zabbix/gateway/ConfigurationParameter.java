@@ -27,6 +27,7 @@ class ConfigurationParameter
 	public static final int TYPE_INTEGER = 0;
 	public static final int TYPE_INETADDRESS = 1;
 	public static final int TYPE_FILE = 2;
+	public static final int TYPE_STRING = 3;
 
 	private String name;
 	private int type;
@@ -75,6 +76,10 @@ class ConfigurationParameter
 				case TYPE_FILE:
 					userValue = new File(text);
 					break;
+				case TYPE_STRING:
+					userValue = text;
+					break;
+					
 			}
 		}
 		catch (Exception e)
