@@ -1,3 +1,5 @@
+Fork from https://bitbucket.org/ryanrupp/zabbix-java-gateway/wiki/Home
+
 # Zabbix Java Gateway Improvements
 
 This project mainly started because my company (JDA Software) liked Jolokia a lot and we wanted to integrate it with Zabbix. The goal then of this project was to add some improvements to the Zabbix Java Gateway which is used to retrieve JMX data for the [Zabbix](http://www.zabbix.com) monitoring tool. Some of these features are fairly non-standard so I don't expect them to make their way into Zabbix standard product but at the same time there's some improvements which I'm hoping can be pushed back to the standard Zabbix Java Gateway product. The key features so far are:
