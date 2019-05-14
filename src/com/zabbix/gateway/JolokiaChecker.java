@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
+import org.apache.commons.codec.binary.StringUtils;
 import org.jolokia.client.J4pClient;
 import org.jolokia.client.J4pClientBuilder;
 import org.jolokia.client.exception.J4pBulkRemoteException;
@@ -82,8 +83,8 @@ class JolokiaChecker extends ItemChecker {
     	super(request);
 
         try {
-            String username = request.optString(JSON_TAG_USERNAME, null);
-            String password = request.optString(JSON_TAG_PASSWORD, null);
+            String username = defaultOrBlankToNull(request.optString(JSON_TAG_USERNAME, null), "{$JMX_USERNAME}");
+            String password = defaultOrBlankToNull(request.optString(JSON_TAG_PASSWORD, null), "{$JMX_PASSWORD}");
             if (securityUtils != null) {
             	password = securityUtils.decrypt(password);
             }
@@ -111,7 +112,26 @@ class JolokiaChecker extends ItemChecker {
         }
     }
 
-    @Override
+    /**
+     * Return null when the value is blank, or equals to the default
+	 * @param aValue
+	 * @param aDefault
+	 * @return
+	 */
+	private String defaultOrBlankToNull(String aValue, String aDefault) {
+		if (aValue == null) {
+			return null;
+		}
+		aValue = aValue.trim();
+		if (aValue.isEmpty() || aValue.equals(aDefault)) {
+			return null;
+		}
+		else {
+			return aValue;
+		}
+	}
+
+	@Override
     public JSONArray getValues() throws ZabbixException {
         JSONArray values = new JSONArray();
         try {
